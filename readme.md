@@ -1,6 +1,6 @@
 # Amber 琥珀
 
-> ![amber](https://github.com/FirokOtaku/Amber/blob/main/docs/amber.jpg?raw=true)  
+> ![amber](https://github.com/FirokOtaku/Amber/blob/master/docs/amber.jpg?raw=true)  
 > 琥珀是松科松属植物的树脂化石，其状态透明似水晶，色泽如玛瑙。不透明的琥珀又称蜜蜡。  
 > 自新石器时代开始，它的美就被人们赞誉。琥珀能制成各种装饰品，是从古至今备受重视的宝石。
 
