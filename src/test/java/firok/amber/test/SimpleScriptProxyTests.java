@@ -2,6 +2,7 @@ package firok.amber.test;
 
 import firok.amber.Field;
 import firok.amber.Method;
+import firok.amber.ScriptInterface;
 import firok.amber.SimpleScriptProxy;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Assertions;
@@ -18,7 +19,7 @@ public class SimpleScriptProxyTests
                 console.log(`this message is print from JavaScript context`)
             }
             """;
-    public interface LogInterface
+    public interface LogInterface extends ScriptInterface
     {
         void log();
     }
@@ -29,8 +30,10 @@ public class SimpleScriptProxyTests
     @Test
     public void testCallFunctionWithoutArg()
     {
-        var proxy = SimpleScriptProxy.connect(ScriptCallFunctionWithoutArg, LogInterface.class);
-        proxy.log();
+        try(var proxy = SimpleScriptProxy.connect(ScriptCallFunctionWithoutArg, LogInterface.class))
+        {
+            proxy.log();
+        }
     }
 
     @Language("JS")
@@ -38,7 +41,7 @@ public class SimpleScriptProxyTests
             function max(n1, n2) { return n1 > n2 ? n1 : n2 }
             function min(n1, n2) { return n1 < n2 ? n1 : n2 }
             """;
-    public interface MathInterface
+    public interface MathInterface extends ScriptInterface
     {
         int max(int n1, int n2);
         int min(int n1, int n2);
@@ -50,14 +53,16 @@ public class SimpleScriptProxyTests
     @Test
     public void testCallFunctionWithArg()
     {
-        var proxy = SimpleScriptProxy.connect(ScriptFunctionWithArgCall, MathInterface.class);
-        Assertions.assertEquals(1, proxy.min(1, 100));
-        Assertions.assertEquals(1, proxy.min(1, 200));
-        Assertions.assertEquals(1, proxy.min(1, 300));
-        Assertions.assertEquals(100, proxy.min(100, 300));
-        Assertions.assertEquals(100, proxy.max(100, 0));
-        Assertions.assertEquals(100, proxy.max(100, -100));
-        Assertions.assertEquals(100, proxy.max(100, 50));
+        try(var proxy = SimpleScriptProxy.connect(ScriptFunctionWithArgCall, MathInterface.class))
+        {
+            Assertions.assertEquals(1, proxy.min(1, 100));
+            Assertions.assertEquals(1, proxy.min(1, 200));
+            Assertions.assertEquals(1, proxy.min(1, 300));
+            Assertions.assertEquals(100, proxy.min(100, 300));
+            Assertions.assertEquals(100, proxy.max(100, 0));
+            Assertions.assertEquals(100, proxy.max(100, -100));
+            Assertions.assertEquals(100, proxy.max(100, 50));
+        }
     }
 
     @Language("JS")
@@ -74,7 +79,7 @@ public class SimpleScriptProxyTests
                 return ret
             }
             """;
-    public interface MemberBindingInterface
+    public interface MemberBindingInterface extends ScriptInterface
     {
         @Field
         int num1();
@@ -92,12 +97,14 @@ public class SimpleScriptProxyTests
     @Test
     void testMemberBinding()
     {
-        var proxyBinding = SimpleScriptProxy.connect(ScriptContextMemberBinding, MemberBindingInterface.class);
-        Assertions.assertEquals(1, proxyBinding.num1());
-        Assertions.assertEquals(2, proxyBinding.num2withDifferentMethodName());
-        var randoms = proxyBinding.listRandomNumber(10);
-        Assertions.assertEquals(10, randoms.size());
-        System.out.println(randoms.getClass());
-        System.out.println(randoms);
+        try(var proxyBinding = SimpleScriptProxy.connect(ScriptContextMemberBinding, MemberBindingInterface.class))
+        {
+            Assertions.assertEquals(1, proxyBinding.num1());
+            Assertions.assertEquals(2, proxyBinding.num2withDifferentMethodName());
+            var randoms = proxyBinding.listRandomNumber(10);
+            Assertions.assertEquals(10, randoms.size());
+            System.out.println(randoms.getClass());
+            System.out.println(randoms);
+        }
     }
 }

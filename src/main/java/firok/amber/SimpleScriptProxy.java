@@ -30,7 +30,7 @@ public class SimpleScriptProxy
      * @param script 脚本内容
      * @param classScriptInterface 脚本接口. 其中所有方法都会被映射为一个脚本方法
      * */
-    public static <TypeInterface> TypeInterface connect(
+    public static <TypeInterface extends ScriptInterface> TypeInterface connect(
             @Language("JS") String script,
             Class<TypeInterface> classScriptInterface
     )
@@ -46,7 +46,7 @@ public class SimpleScriptProxy
     /**
      * @see #connect(String, Class)
      * */
-    public static <TypeInterface> TypeInterface connect(
+    public static <TypeInterface extends ScriptInterface> TypeInterface connect(
             List<String> scripts,
             Class<TypeInterface> classScriptInterface
     )
@@ -65,7 +65,7 @@ public class SimpleScriptProxy
      * @see #connect(String, Class)
      * */
     @SuppressWarnings("unchecked")
-    public static <TypeInterface> TypeInterface connect(
+    public static <TypeInterface extends ScriptInterface> TypeInterface connect(
             @Language("JS") String script,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
@@ -83,7 +83,7 @@ public class SimpleScriptProxy
      * @see #connect(String, Class, Consumer, LockProxy)
      * */
     @SuppressWarnings("unchecked")
-    public static <TypeInterface> TypeInterface connect(
+    public static <TypeInterface extends ScriptInterface> TypeInterface connect(
             List<String> scripts,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,

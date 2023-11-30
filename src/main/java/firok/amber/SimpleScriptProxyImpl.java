@@ -15,7 +15,7 @@ import java.util.function.Function;
 import static firok.topaz.general.Collections.isEmpty;
 
 @SuppressWarnings("FieldCanBeLocal")
-class SimpleScriptProxyImpl<TypeInterface> implements InvocationHandler
+class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements InvocationHandler
 {
     private final LockProxy lockProxy;
     private final Context context;
@@ -56,35 +56,46 @@ class SimpleScriptProxyImpl<TypeInterface> implements InvocationHandler
             if(annoField != null && annoMethod != null) throw new IllegalArgumentException("不能为方法指定多个目标");
             var nameMethod = method.getName();
 
-            boolean isField = annoField != null;
-            String nameTarget;
-            if(annoField != null) nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
-            else if(annoMethod != null) nameTarget = "".equals(annoMethod.value()) ? nameMethod : annoMethod.value();
-            else nameTarget = method.getName();
-
-            var typeReturnValue = method.getReturnType();
-
-            this.mappedContext.put(method, (args) -> {
-                var target = bindings.getMember(nameTarget);
-
-                if (isField)
-                {
-                    return target.as(typeReturnValue);
-                }
-
-                if (typeReturnValue == void.class || typeReturnValue == Void.class)
-                {
-                    if (isEmpty(args)) target.executeVoid();
-                    else target.executeVoid(args);
+            if("close".equals(nameMethod) && method.getParameterCount() == 0) // close 方法, 转发为脚本引擎关闭接口
+            {
+                this.mappedContext.put(method, args -> {
+                    try { context.close(); }
+                    catch (Exception ignored) { }
                     return null;
-                }
-                else
-                {
-                    return isEmpty(args) ?
-                            target.execute().as(typeReturnValue) :
-                            target.execute(args).as(typeReturnValue);
-                }
-            });
+                });
+            }
+            else // 非 close 方法, 转发到脚本引擎内部实现
+            {
+                boolean isField = annoField != null;
+                String nameTarget;
+                if(annoField != null) nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
+                else if(annoMethod != null) nameTarget = "".equals(annoMethod.value()) ? nameMethod : annoMethod.value();
+                else nameTarget = method.getName();
+
+                var typeReturnValue = method.getReturnType();
+
+                this.mappedContext.put(method, (args) -> {
+                    var target = bindings.getMember(nameTarget);
+
+                    if (isField)
+                    {
+                        return target.as(typeReturnValue);
+                    }
+
+                    if (typeReturnValue == void.class || typeReturnValue == Void.class)
+                    {
+                        if (isEmpty(args)) target.executeVoid();
+                        else target.executeVoid(args);
+                        return null;
+                    }
+                    else
+                    {
+                        return isEmpty(args) ?
+                                target.execute().as(typeReturnValue) :
+                                target.execute(args).as(typeReturnValue);
+                    }
+                });
+            }
         }
     }
 
