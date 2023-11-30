@@ -12,7 +12,7 @@ public final class Amber
     public static final ProgramMeta META = new ProgramMeta(
             "firok.amber",
             "Amber",
-            new Version(2, 0, 0),
+            new Version(2, 0, 1),
             "a personal Java lib",
             List.of("Firok"),
             List.of("https://github.com/FirokOtaku/Amber"),

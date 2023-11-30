@@ -3,9 +3,8 @@ package firok.amber;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
 
-import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.*;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

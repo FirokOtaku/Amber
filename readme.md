@@ -15,10 +15,10 @@
 
 最新改动:
 
+* 2.0.1
+  * 增加更多示例代码
 * **2.0.0**
   * 新增关闭脚本引擎接口支持 (通过 `proxy#close()` 调用)
-* **1.0.0**
-  * 新增简易脚本代理
 
 ## 安装
 
@@ -41,4 +41,12 @@
 
 ## 使用
 
-`firok.amber.test.SimpleScriptProxyTests` 内有示例调用代码.
+`firok.amber.test.SimpleScriptProxyTests` 内有基础示例调用代码.
+
+请注意, 由于 GraalJS 的 `Value.as` 方法不能直接将 JavaScript Object 转换为 Java Object,
+如果你需要映射的方法所返回 Java 类型, 目前已知两种方式可以实现:
+
+1. (推荐) 在 JavaScript 脚本中使用 `Java.type()` 等 API 先获取到 Java 类型, 然后对其实例化
+2. 从 JavaScript 脚本返回 `JSON.stringify()` 后的字符串, 然后在 Java 中使用 Jackson 或 GSON 等库转换为 Java 类型
+
+详见 `firok.amber.test.JavaTypeConvertTests`.
