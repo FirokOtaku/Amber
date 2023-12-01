@@ -6,15 +6,23 @@
 
 > JavaScript's a trap!
 
-一些对 GraalJS 的封装代码. 代码基于 **Java 21**.
+为了方便使用 Java 和 JavaScript 做交叉编程,  
+对 GraalJS 进行了一点微小的封装,  
+将一些初始化解释器和类型转换的样板代码封装成工厂方法以供使用.
 
-由于 GraalJS 不支持 JVM 模块化, 遂从开启了模块化的 [Topaz 项目](https://github.com/FirokOtaku/Topaz) 分离出此项目.
+由于 GraalJS 不支持 JVM 模块化,  
+不方便把这部分代码放在 [Topaz 项目](https://github.com/FirokOtaku/Topaz) 里,  
+所以单独分离作为一个子项目.
+
+代码基于 **Java 21**.
 
 * [改动记录](docs/changelog.md)
-* [相关项目 - 托帕石](https://github.com/FirokOtaku/Topaz)
+* [相关项目 - Topaz 托帕石](https://github.com/FirokOtaku/Topaz)
 
 最新改动:
 
+* 3.1.0
+  * 新增 Java 类型绑定支持
 * **3.0.0**
   * 新增上下文字段 setter 写入支持
   * 开放内部 GraalJS 引擎操作支持
