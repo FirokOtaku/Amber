@@ -54,12 +54,6 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
             this.context = Context.newBuilder(this.language).allowAllAccess(true).build();
         }
 
-        // 执行初始化脚本
-        for(var script : scripts)
-        {
-            context.eval(this.language, script);
-        }
-
         this.lockProxy = lockProxy;
         this.mappedContext = new HashMap<>();
         var bindings = context.getBindings(this.language);
@@ -132,16 +126,18 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
             {
                 var annoField = method.getAnnotation(firok.amber.Field.class);
                 var annoMethod = method.getAnnotation(firok.amber.Method.class);
+                var annoType = method.getAnnotation(firok.amber.Type.class);
                 if(annoField != null && annoMethod != null) throw new IllegalArgumentException("不能为方法指定多个目标");
                 var nameMethod = method.getName();
                 var countParam = method.getParameterCount();
                 var typeReturnValue = method.getReturnType();
 
-                boolean isField = annoField != null;
+                final boolean isField = annoField != null;
+                final boolean isType = annoType != null;
                 String nameTarget;
                 if(isField)
                 {
-                    if(countParam > 1) throw new IllegalArgumentException("字段操作器只能有零或一个参数");
+                    if(countParam > 1) throw new IllegalArgumentException("字段操作器只能有零或一个形参");
 
                     nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
 
@@ -156,6 +152,16 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
                             return null;
                         }
                     });
+                }
+                else if(isType)
+                {
+                    if(countParam > 0) throw new IllegalArgumentException("类型绑定器不能有形参");
+
+                    nameTarget = "".equals(annoType.value()) ? nameMethod : annoType.value();
+
+                    bindings.putMember(nameTarget, typeReturnValue);
+
+                    this.mappedContext.put(method, this::notMethod);
                 }
                 else
                 {
@@ -182,6 +188,17 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
                 }
             }
         }
+
+        // 执行初始化脚本
+        for(var script : scripts)
+        {
+            context.eval(this.language, script);
+        }
+    }
+
+    private Object notMethod(Object[] args)
+    {
+        throw new UnsupportedOperationException("类型绑定器不允许被调用");
     }
 
     SimpleScriptProxyImpl(
