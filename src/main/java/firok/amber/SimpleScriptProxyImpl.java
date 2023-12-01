@@ -1,7 +1,10 @@
 package firok.amber;
 
+import firok.topaz.function.MustCloseable;
+import firok.topaz.reflection.Reflections;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.*;
 import java.lang.reflect.Method;
@@ -13,49 +16,58 @@ import java.util.function.Function;
 
 import static firok.topaz.general.Collections.isEmpty;
 
-@SuppressWarnings("FieldCanBeLocal")
+@SuppressWarnings({"FieldCanBeLocal", "DataFlowIssue"})
 class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements InvocationHandler
 {
     private final LockProxy lockProxy;
     private final Context context;
     private final Map<Method, Function<Object[], ?>> mappedContext;
+    @NotNull private final static Method MethodClose = Reflections.methodOf(MustCloseable.class, "close");
+    @NotNull private final static Method MethodGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
+    @NotNull private final static Method MethodGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
+    @NotNull private final static Method MethodSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
+    @NotNull private final static Method MethodHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
+    @NotNull private final static Method MethodRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
+    @NotNull private final static Method MethodEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
+    @NotNull private final static Method MethodContext = Reflections.methodOf(ScriptInterface.class, "context");
+    @NotNull private final static Method MethodLanguage = Reflections.methodOf(ScriptInterface.class, "language");
 
+    private final String language;
     SimpleScriptProxyImpl(
+            String language,
             List<String> scripts,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
             LockProxy lockProxy
     )
     {
+        this.language = language;
+
         if (buildProxy != null)
         {
-            var builder = Context.newBuilder("js");
+            var builder = Context.newBuilder(this.language);
             buildProxy.accept(builder);
             this.context = builder.build();
         }
         else
         {
-            this.context = Context.newBuilder("js").allowAllAccess(true).build();
+            this.context = Context.newBuilder(this.language).allowAllAccess(true).build();
         }
 
         // 执行初始化脚本
         for(var script : scripts)
         {
-            context.eval("js", script);
+            context.eval(this.language, script);
         }
 
         this.lockProxy = lockProxy;
         this.mappedContext = new HashMap<>();
-        var bindings = context.getBindings("js");
+        var bindings = context.getBindings(this.language);
         for (var method : classScriptInterface.getMethods())
         {
             if (Modifier.isStatic(method.getModifiers())) continue; // 暂时不处理静态方法
-            var annoField = method.getAnnotation(firok.amber.Field.class);
-            var annoMethod = method.getAnnotation(firok.amber.Method.class);
-            if(annoField != null && annoMethod != null) throw new IllegalArgumentException("不能为方法指定多个目标");
-            var nameMethod = method.getName();
 
-            if("close".equals(nameMethod) && method.getParameterCount() == 0) // close 方法, 转发为脚本引擎关闭接口
+            if(MethodClose.equals(method))
             {
                 this.mappedContext.put(method, args -> {
                     try { context.close(); }
@@ -63,49 +75,124 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
                     return null;
                 });
             }
-            else // 非 close 方法, 转发到脚本引擎内部实现
+            else if(MethodGet.equals(method))
             {
-                boolean isField = annoField != null;
-                String nameTarget;
-                if(annoField != null) nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
-                else if(annoMethod != null) nameTarget = "".equals(annoMethod.value()) ? nameMethod : annoMethod.value();
-                else nameTarget = method.getName();
-
+                this.mappedContext.put(method, args -> {
+                    try { return bindings.getMember((String) args[0]); }
+                    catch (Exception any) { return null; }
+                });
+            }
+            else if(MethodGetType.equals(method))
+            {
+                this.mappedContext.put(method, args -> {
+                    try
+                    {
+                        var value = bindings.getMember((String) args[0]);
+                        return value != null && !value.isNull() ? value.as((Class<?>) args[1]) : null;
+                    }
+                    catch (Exception any) { return null; }
+                });
+            }
+            else if(MethodSet.equals(method))
+            {
+                this.mappedContext.put(method, args -> {
+                    try { bindings.putMember((String) args[0], args[1]); }
+                    catch (Exception ignored) { }
+                    return null;
+                });
+            }
+            else if(MethodHas.equals(method))
+            {
+                this.mappedContext.put(method, args -> {
+                    try { return bindings.hasMember((String) args[0]); }
+                    catch (Exception any) { return false; }
+                });
+            }
+            else if(MethodRemove.equals(method))
+            {
+                this.mappedContext.put(method, args -> {
+                    try { bindings.removeMember((String) args[0]); }
+                    catch (Exception ignored) { }
+                    return null;
+                });
+            }
+            else if(MethodEval.equals(method))
+            {
+                this.mappedContext.put(method, args -> context.eval(this.language, (String) args[0]));
+            }
+            else if(MethodContext.equals(method))
+            {
+                this.mappedContext.put(method, args -> context);
+            }
+            else if(MethodLanguage.equals(method))
+            {
+                this.mappedContext.put(method, args -> this.language);
+            }
+            else // 转发到脚本引擎内部实现
+            {
+                var annoField = method.getAnnotation(firok.amber.Field.class);
+                var annoMethod = method.getAnnotation(firok.amber.Method.class);
+                if(annoField != null && annoMethod != null) throw new IllegalArgumentException("不能为方法指定多个目标");
+                var nameMethod = method.getName();
+                var countParam = method.getParameterCount();
                 var typeReturnValue = method.getReturnType();
 
-                this.mappedContext.put(method, (args) -> {
-                    var target = bindings.getMember(nameTarget);
+                boolean isField = annoField != null;
+                String nameTarget;
+                if(isField)
+                {
+                    if(countParam > 1) throw new IllegalArgumentException("字段操作器只能有零或一个参数");
 
-                    if (isField)
-                    {
-                        return target.as(typeReturnValue);
-                    }
+                    nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
 
-                    if (typeReturnValue == void.class || typeReturnValue == Void.class)
-                    {
-                        if (isEmpty(args)) target.executeVoid();
-                        else target.executeVoid(args);
-                        return null;
-                    }
-                    else
-                    {
-                        return isEmpty(args) ?
-                                target.execute().as(typeReturnValue) :
-                                target.execute(args).as(typeReturnValue);
-                    }
-                });
+                    this.mappedContext.put(method, (args) -> {
+                        if (countParam == 0)
+                        {
+                            return bindings.hasMember(nameTarget) ? bindings.getMember(nameTarget).as(typeReturnValue) : null;
+                        }
+                        else
+                        {
+                            bindings.putMember(nameTarget, args[0]);
+                            return null;
+                        }
+                    });
+                }
+                else
+                {
+                    nameTarget = annoMethod != null && !"".equals(annoMethod.value()) ?
+                            annoMethod.value() :
+                            nameMethod;
+
+                    this.mappedContext.put(method, (args) -> {
+                        var target = bindings.getMember(nameTarget);
+
+                        if (typeReturnValue == void.class || typeReturnValue == Void.class)
+                        {
+                            if (isEmpty(args)) target.executeVoid();
+                            else target.executeVoid(args);
+                            return null;
+                        }
+                        else
+                        {
+                            return isEmpty(args) ?
+                                    target.execute().as(typeReturnValue) :
+                                    target.execute(args).as(typeReturnValue);
+                        }
+                    });
+                }
             }
         }
     }
 
     SimpleScriptProxyImpl(
+            String language,
             String script,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
             LockProxy lockProxy
     )
     {
-        this(List.of(script), classScriptInterface, buildProxy, lockProxy);
+        this(language, List.of(script), classScriptInterface, buildProxy, lockProxy);
     }
 
     @Override

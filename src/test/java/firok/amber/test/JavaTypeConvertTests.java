@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+@SuppressWarnings("all")
 public class JavaTypeConvertTests
 {
     public static class Bean
@@ -22,7 +23,7 @@ public class JavaTypeConvertTests
 
     @Language("JS")
     public static final String ScriptSuccess = """
-            const Bean = Java.type('firok.amber.test.TypeConvertTests.Bean')
+            const Bean = Java.type('firok.amber.test.JavaTypeConvertTests.Bean')
             function getBeans()
             {
                 const b1 = new Bean(), b2 = new Bean(), b3 = new Bean()
@@ -34,7 +35,7 @@ public class JavaTypeConvertTests
             """;
 
     @Test
-    public void testReturnBeanType() throws Exception
+    public void testReturnBeanType()
     {
         try(var beanSupplier = SimpleScriptProxy.connect(ScriptSuccess, BeanSupplier.class))
         {

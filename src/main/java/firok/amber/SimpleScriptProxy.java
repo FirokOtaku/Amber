@@ -75,7 +75,7 @@ public class SimpleScriptProxy
         return (TypeInterface) Proxy.newProxyInstance(
                 classScriptInterface.getClassLoader(),
                 new Class[] { classScriptInterface },
-                new SimpleScriptProxyImpl<>(script, classScriptInterface, buildProxy, lockProxy)
+                new SimpleScriptProxyImpl<>("js", script, classScriptInterface, buildProxy, lockProxy)
         );
     }
 
@@ -93,7 +93,7 @@ public class SimpleScriptProxy
         return (TypeInterface) Proxy.newProxyInstance(
                 classScriptInterface.getClassLoader(),
                 new Class[] { classScriptInterface },
-                new SimpleScriptProxyImpl<>(scripts, classScriptInterface, buildProxy, lockProxy)
+                new SimpleScriptProxyImpl<>("js", scripts, classScriptInterface, buildProxy, lockProxy)
         );
     }
 
