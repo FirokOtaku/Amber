@@ -17,7 +17,7 @@ import java.util.function.Function;
 import static firok.topaz.general.Collections.isEmpty;
 
 @SuppressWarnings({"FieldCanBeLocal", "DataFlowIssue"})
-class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements InvocationHandler
+class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHandler
 {
     private final LockProxy lockProxy;
     private final Context context;
@@ -32,16 +32,16 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
     @NotNull private final static Method MethodContext = Reflections.methodOf(ScriptInterface.class, "context");
     @NotNull private final static Method MethodLanguage = Reflections.methodOf(ScriptInterface.class, "language");
 
-    private final String language;
-    SimpleScriptProxyImpl(
-            String language,
-            List<String> scripts,
+    private final List<Language> languages;
+    AmberInstance(
+            Iterable<Language> languages,
+            Iterable<String> scripts,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
             LockProxy lockProxy
     )
     {
-        this.language = language;
+        this.languages = languages;
 
         if (buildProxy != null)
         {
@@ -201,15 +201,14 @@ class SimpleScriptProxyImpl<TypeInterface extends AutoCloseable> implements Invo
         throw new UnsupportedOperationException("类型绑定器不允许被调用");
     }
 
-    SimpleScriptProxyImpl(
-            String language,
-            String script,
+    AmberInstance(
+            Iterable<Language> languages,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
             LockProxy lockProxy
     )
     {
-        this(language, List.of(script), classScriptInterface, buildProxy, lockProxy);
+        this(languages, List.of(), classScriptInterface, buildProxy, lockProxy);
     }
 
     @Override
