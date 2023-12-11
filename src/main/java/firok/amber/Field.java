@@ -8,6 +8,7 @@ import java.lang.annotation.Target;
 /**
  * 明确指定获取某个上下文成员
  * @since 1.0.0
+ * @version 4.0.0
  * @author Firok
  * */
 @Retention(RetentionPolicy.RUNTIME)
@@ -18,4 +19,9 @@ public @interface Field
      * 如果留空, 则默认使用方法名
      * */
     String value() default "";
+
+    /**
+     * 哪个上下文里的成员
+     * */
+    String context() default "";
 }

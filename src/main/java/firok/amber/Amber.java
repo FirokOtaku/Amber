@@ -4,8 +4,11 @@ import firok.topaz.general.ProgramMeta;
 import firok.topaz.general.Version;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Language;
+import org.graalvm.polyglot.Source;
 
 import java.lang.reflect.Proxy;
+import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -17,7 +20,7 @@ public final class Amber
     public static final ProgramMeta META = new ProgramMeta(
             "firok.amber",
             "Amber",
-            new Version(3, 2, 0),
+            new Version(4, 0, 0),
             "a personal Java lib",
             List.of("Firok"),
             List.of("https://github.com/FirokOtaku/Amber"),
@@ -25,20 +28,27 @@ public final class Amber
             "MulanPSL-2.0"
     );
 
+    /**
+     * @since 4.0.0
+     * */
     public static <TypeInterface extends ScriptInterface>
-    TypeInterface trapWithScripts(
-            Language polyglotLanguage,
-            Iterable<String> scripts,
+    TypeInterface trap(
+            Iterable<String> polyglotLanguages,
+            Iterable<Source> scripts,
             Consumer<Context.Builder> builderProxy,
             LockProxy lockProxy,
             Class<TypeInterface> classScriptInterface
     )
     {
+        var setLang = new HashSet<String>();
+        polyglotLanguages.forEach(setLang::add);
+        scripts.forEach(script -> setLang.add(script.getLanguage()));
+
         return (TypeInterface) Proxy.newProxyInstance(
                 classScriptInterface.getClassLoader(),
                 new Class[] { classScriptInterface },
                 new AmberInstance<>(
-                        polyglotLanguage,
+                        setLang,
                         scripts,
                         classScriptInterface,
                         builderProxy,

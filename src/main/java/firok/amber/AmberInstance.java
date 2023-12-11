@@ -4,13 +4,14 @@ import firok.topaz.function.MustCloseable;
 import firok.topaz.reflection.Reflections;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Source;
+import org.graalvm.polyglot.Value;
 import org.jetbrains.annotations.NotNull;
 
+import javax.script.Bindings;
 import java.lang.reflect.*;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -21,87 +22,242 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
 {
     private final LockProxy lockProxy;
     private final Context context;
+    private final Map<String, Value> mapBinding;
     private final Map<Method, Function<Object[], ?>> mappedContext;
-    @NotNull private final static Method MethodClose = Reflections.methodOf(MustCloseable.class, "close");
-    @NotNull private final static Method MethodGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
-    @NotNull private final static Method MethodGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
-    @NotNull private final static Method MethodSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
-    @NotNull private final static Method MethodHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
-    @NotNull private final static Method MethodRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
-    @NotNull private final static Method MethodEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
-    @NotNull private final static Method MethodContext = Reflections.methodOf(ScriptInterface.class, "context");
-    @NotNull private final static Method MethodLanguage = Reflections.methodOf(ScriptInterface.class, "language");
+//    @NotNull private final static Method MethodClose = Reflections.methodOf(MustCloseable.class, "close");
+//    @NotNull private final static Method MethodGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
+//    @NotNull private final static Method MethodGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
+//    @NotNull private final static Method MethodSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
+//    @NotNull private final static Method MethodHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
+//    @NotNull private final static Method MethodRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
+//    @NotNull private final static Method MethodEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
+//    @NotNull private final static Method MethodContext = Reflections.methodOf(ScriptInterface.class, "context");
+//    @NotNull private final static Method MethodLanguage = Reflections.methodOf(ScriptInterface.class, "language");
+    @NotNull private final static Method FunGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
+    private Object funGet(Object[] args)
+    {
+        try
+        {
+            var key = (String) args[0];
+            for(var language : languages)
+            {
+                var value = mapBinding.get(language).getMember(key);
+                if(value != null) return value;
+            }
+            return null;
+        }
+        catch (Exception any) { return null; }
+    }
+    @NotNull private final static Method FunGetFrom = Reflections.methodOf(ScriptInterface.class, "get", String.class, String.class);
+    private Object funGetFrom(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var key = (String) args[1];
+            return mapBinding.get(language).getMember(key);
+        }
+        catch (Exception any) { return null; }
+    }
+    @NotNull private final static Method FunGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
+    private Object funGetType(Object[] args)
+    {
+        try
+        {
+            var key = (String) args[0];
+            var type = (Class<?>) args[1];
+            for(var language : languages)
+            {
+                var value = mapBinding.get(language).getMember(key);
+                if(value != null && !value.isNull())
+                    return value.as(type);
+            }
+            return null;
+        }
+        catch (Exception any) { return null; }
+    }
+    @NotNull private final static Method FunGetTypeFrom = Reflections.methodOf(ScriptInterface.class, "get", String.class, String.class, Class.class);
+    private Object funGetTypeFrom(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var key = (String) args[1];
+            var type = (Class<?>) args[2];
+            var value = mapBinding.get(language).getMember(key);
+            if(value != null && !value.isNull())
+                return value.as(type);
+            return null;
+        }
+        catch (Exception any) { return null; }
+    }
+    @NotNull private final static Method FunSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
+    private Object funSet(Object[] args)
+    {
+        try
+        {
+            var key = (String) args[0];
+            var value = args[1];
+            for(var language : this.languages)
+            {
+                mapBinding.get(language).putMember(key, value);
+            }
+        }
+        catch (Exception ignored) { }
+        return null;
+    }
+    @NotNull private final static Method FunSetTo = Reflections.methodOf(ScriptInterface.class, "set", String.class, String.class, Object.class);
+    private Object funSetTo(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var key = (String) args[1];
+            var value = args[2];
+            mapBinding.get(language).putMember(key, value);
+        }
+        catch (Exception ignored) { }
+        return null;
+    }
+    @NotNull private final static Method FunHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
+    private Object funHas(Object[] args)
+    {
+        try
+        {
+            var key = (String) args[0];
+            for(var language : this.languages)
+            {
+                if(mapBinding.get(language).hasMember(key)) return true;
+            }
+            return false;
+        }
+        catch (Exception any) { return false; }
+    }
+    @NotNull private final static Method FunHasAt = Reflections.methodOf(ScriptInterface.class, "has", String.class, String.class);
+    private Object funHasAt(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var key = (String) args[1];
+            return mapBinding.get(language).hasMember(key);
+        }
+        catch (Exception any) { return false; }
+    }
+    @NotNull private final static Method FunRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
+    @NotNull private final static Method FunRemoveAt = Reflections.methodOf(ScriptInterface.class, "remove", String.class, String.class);
+    @NotNull private final static Method FunEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
+    @NotNull private final static Method FunEvalAt = Reflections.methodOf(ScriptInterface.class, "eval", String.class, String.class);
+    @NotNull private final static Method FunContext = Reflections.methodOf(ScriptInterface.class, "context");
+    @NotNull private final static Method FunLanguages = Reflections.methodOf(ScriptInterface.class, "languages");
+    @NotNull private final static Method FunClose = Reflections.methodOf(MustCloseable.class, "close");
+    private Object funClose(Object[] args)
+    {
+        try { this.context.close(); }
+        catch (Exception ignored) { }
+        return null;
+    }
 
-    private final List<Language> languages;
+    private Object funFieldSetter()
+    {
+        ;
+    }
+    private Object funFieldGetter()
+    {
+        ;
+    }
+    private Object funMethod()
+    {
+        ;
+    }
+
+    private final String[] languages;
+
+    private Object notMethod(Object[] args)
+    {
+        throw new UnsupportedOperationException("类型绑定器不允许被调用");
+    }
+
     AmberInstance(
-            Iterable<Language> languages,
-            Iterable<String> scripts,
+            Iterable<String> languages,
+            Iterable<Source> scripts,
             Class<TypeInterface> classScriptInterface,
             Consumer<Context.Builder> buildProxy,
             LockProxy lockProxy
     )
     {
-        this.languages = languages;
+        var listLanguage = new ArrayList<String>();
+        languages.forEach(listLanguage::add);
+        this.languages = listLanguage.toArray(new String[0]);
 
         if (buildProxy != null)
         {
-            var builder = Context.newBuilder(this.language);
+            var builder = Context.newBuilder(this.languages);
             buildProxy.accept(builder);
             this.context = builder.build();
         }
         else
         {
-            this.context = Context.newBuilder(this.language).allowAllAccess(true).build();
+            this.context = Context.newBuilder(this.languages).allowAllAccess(true).build();
         }
 
+        this.mapBinding = new HashMap<>();
+        for(var language : this.languages)
+        {
+            mapBinding.put(language, context.getBindings(language));
+        }
+
+        // 执行初始化
+        var annoInit = classScriptInterface.getAnnotation(Init.class);
+        if(annoInit != null)
+        {
+            for(var type : annoInit.types())
+            {
+                var targetClass = type.target();
+                var targetName = "".equals(type.name()) ? targetClass.getSimpleName() : type.name();
+                for(var language : this.languages)
+                {
+                    mapBinding.get(language).putMember(targetName, targetClass);
+                }
+            }
+            for(var script: annoInit.scripts())
+            {
+                try
+                {
+                    var source = Source.newBuilder(script.language(), script.source(), script.name())
+                            .mimeType(script.mimeType())
+                            .interactive(script.interactive())
+                            .internal(script.internal())
+                            .build();
+                    context.eval(source);
+                }
+                catch (Exception any)
+                {
+                    throw new IllegalArgumentException("初始化并执行脚本内容失败", any);
+                }
+            }
+        }
+
+        // 运行用户脚本
+        scripts.forEach(context::eval);
+
+        // 读取并创建绑定
         this.lockProxy = lockProxy;
         this.mappedContext = new HashMap<>();
-        var bindings = context.getBindings(this.language);
+
         for (var method : classScriptInterface.getMethods())
         {
             if (Modifier.isStatic(method.getModifiers())) continue; // 暂时不处理静态方法
 
-            if(MethodClose.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try { context.close(); }
-                    catch (Exception ignored) { }
-                    return null;
-                });
-            }
-            else if(MethodGet.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try { return bindings.getMember((String) args[0]); }
-                    catch (Exception any) { return null; }
-                });
-            }
-            else if(MethodGetType.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try
-                    {
-                        var value = bindings.getMember((String) args[0]);
-                        return value != null && !value.isNull() ? value.as((Class<?>) args[1]) : null;
-                    }
-                    catch (Exception any) { return null; }
-                });
-            }
-            else if(MethodSet.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try { bindings.putMember((String) args[0], args[1]); }
-                    catch (Exception ignored) { }
-                    return null;
-                });
-            }
-            else if(MethodHas.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try { return bindings.hasMember((String) args[0]); }
-                    catch (Exception any) { return false; }
-                });
-            }
+            if(FunClose.equals(method)) this.mappedContext.put(method, this::funClose);
+            else if(FunGet.equals(method)) this.mappedContext.put(method, this::funGet);
+            else if(FunGetFrom.equals(method)) this.mappedContext.put(method, this::funGetFrom);
+            else if(FunGetType.equals(method)) this.mappedContext.put(method, this::funGetType);
+            else if(FunGetTypeFrom.equals(method)) this.mappedContext.put(method, this::funGetTypeFrom);
+            else if(FunSet.equals(method)) this.mappedContext.put(method, this::funSet);
+            else if(FunSetTo.equals(method)) this.mappedContext.put(method, this::funSetTo);
+            else if(FunHas.equals(method)) this.mappedContext.put(method, this::funHas);
+            else if(FunHasAt.equals(method)) this.mappedContext.put(method, this::funHasAt);
             else if(MethodRemove.equals(method))
             {
                 this.mappedContext.put(method, args -> {
@@ -188,27 +344,6 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
                 }
             }
         }
-
-        // 执行初始化脚本
-        for(var script : scripts)
-        {
-            context.eval(this.language, script);
-        }
-    }
-
-    private Object notMethod(Object[] args)
-    {
-        throw new UnsupportedOperationException("类型绑定器不允许被调用");
-    }
-
-    AmberInstance(
-            Iterable<Language> languages,
-            Class<TypeInterface> classScriptInterface,
-            Consumer<Context.Builder> buildProxy,
-            LockProxy lockProxy
-    )
-    {
-        this(languages, List.of(), classScriptInterface, buildProxy, lockProxy);
     }
 
     @Override
@@ -218,6 +353,8 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
         {
             lockProxy.lock();
             var function = this.mappedContext.get(method);
+            if(function == null)
+                throw new NoSuchMethodException(method.getName());
             return function.apply(args);
         }
         catch (Exception any)
