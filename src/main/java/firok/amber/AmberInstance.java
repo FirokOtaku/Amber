@@ -8,6 +8,7 @@ import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.jetbrains.annotations.NotNull;
 
+import javax.naming.OperationNotSupportedException;
 import javax.script.Bindings;
 import java.lang.reflect.*;
 import java.lang.reflect.Method;
@@ -24,15 +25,6 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
     private final Context context;
     private final Map<String, Value> mapBinding;
     private final Map<Method, Function<Object[], ?>> mappedContext;
-//    @NotNull private final static Method MethodClose = Reflections.methodOf(MustCloseable.class, "close");
-//    @NotNull private final static Method MethodGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
-//    @NotNull private final static Method MethodGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
-//    @NotNull private final static Method MethodSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
-//    @NotNull private final static Method MethodHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
-//    @NotNull private final static Method MethodRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
-//    @NotNull private final static Method MethodEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
-//    @NotNull private final static Method MethodContext = Reflections.methodOf(ScriptInterface.class, "context");
-//    @NotNull private final static Method MethodLanguage = Reflections.methodOf(ScriptInterface.class, "language");
     @NotNull private final static Method FunGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
     private Object funGet(Object[] args)
     {
@@ -145,11 +137,83 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
         catch (Exception any) { return false; }
     }
     @NotNull private final static Method FunRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
+    private Object funRemove(Object[] args)
+    {
+        try
+        {
+            var key = (String) args[0];
+            for(var language : this.languages)
+            {
+                mapBinding.get(language).removeMember(key);
+            }
+        }
+        catch (Exception ignored) { }
+        return null;
+    }
     @NotNull private final static Method FunRemoveAt = Reflections.methodOf(ScriptInterface.class, "remove", String.class, String.class);
+    private Object funRemoveAt(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var key = (String) args[1];
+            mapBinding.get(language).removeMember(key);
+        }
+        catch (Exception ignored) { }
+        return null;
+    }
     @NotNull private final static Method FunEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
+    private Object funEval(Object[] args)
+    {
+        try
+        {
+            var script = (String) args[0];
+            if(this.languages.length > 1)
+                throw new OperationNotSupportedException("eval(String) method is allowed when only one language is used");
+            return this.context.eval(this.languages[0], script);
+        }
+        catch (Exception any)
+        {
+            throw new RuntimeException(any);
+        }
+    }
     @NotNull private final static Method FunEvalAt = Reflections.methodOf(ScriptInterface.class, "eval", String.class, String.class);
+    private Object funEvalAt(Object[] args)
+    {
+        try
+        {
+            var language = (String) args[0];
+            var script = (String) args[1];
+            return this.context.eval(language, script);
+        }
+        catch (Exception any)
+        {
+            throw new RuntimeException(any);
+        }
+    }
+    @NotNull private final static Method FunEvalSource = Reflections.methodOf(ScriptInterface.class, "eval", Source.class);
+    private Object funEvalSource(Object[] args)
+    {
+        try
+        {
+            var source = (Source) args[0];
+            return this.context.eval(source);
+        }
+        catch (Exception any)
+        {
+            throw new RuntimeException(any);
+        }
+    }
     @NotNull private final static Method FunContext = Reflections.methodOf(ScriptInterface.class, "context");
+    private Object funContext(Object[] args)
+    {
+        return this.context;
+    }
     @NotNull private final static Method FunLanguages = Reflections.methodOf(ScriptInterface.class, "languages");
+    private Object funLanguages(Object[] args)
+    {
+        return this.languages.clone();
+    }
     @NotNull private final static Method FunClose = Reflections.methodOf(MustCloseable.class, "close");
     private Object funClose(Object[] args)
     {
@@ -172,10 +236,10 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
     }
 
     private final String[] languages;
-
-    private Object notMethod(Object[] args)
+    private Value[] getBindings(String language)
     {
-        throw new UnsupportedOperationException("类型绑定器不允许被调用");
+        if(language == null) return mapBinding.values().toArray(new Value[0]);
+        else return new Value[] { mapBinding.get(language) };
     }
 
     AmberInstance(
@@ -258,38 +322,42 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
             else if(FunSetTo.equals(method)) this.mappedContext.put(method, this::funSetTo);
             else if(FunHas.equals(method)) this.mappedContext.put(method, this::funHas);
             else if(FunHasAt.equals(method)) this.mappedContext.put(method, this::funHasAt);
-            else if(MethodRemove.equals(method))
-            {
-                this.mappedContext.put(method, args -> {
-                    try { bindings.removeMember((String) args[0]); }
-                    catch (Exception ignored) { }
-                    return null;
-                });
-            }
-            else if(MethodEval.equals(method))
-            {
-                this.mappedContext.put(method, args -> context.eval(this.language, (String) args[0]));
-            }
-            else if(MethodContext.equals(method))
-            {
-                this.mappedContext.put(method, args -> context);
-            }
-            else if(MethodLanguage.equals(method))
-            {
-                this.mappedContext.put(method, args -> this.language);
-            }
+            else if(FunRemove.equals(method)) this.mappedContext.put(method, this::funRemove);
+            else if(FunRemoveAt.equals(method)) this.mappedContext.put(method, this::funRemoveAt);
+            else if(FunEval.equals(method)) this.mappedContext.put(method, this::funEval);
+            else if(FunEvalAt.equals(method)) this.mappedContext.put(method, this::funEvalAt);
+            else if(FunEvalSource.equals(method)) this.mappedContext.put(method, this::funEvalSource);
+            else if(FunContext.equals(method)) this.mappedContext.put(method, this::funContext);
+            else if(FunLanguages.equals(method)) this.mappedContext.put(method, this::funLanguages);
             else // 转发到脚本引擎内部实现
             {
                 var annoField = method.getAnnotation(firok.amber.Field.class);
                 var annoMethod = method.getAnnotation(firok.amber.Method.class);
-                var annoType = method.getAnnotation(firok.amber.Type.class);
                 if(annoField != null && annoMethod != null) throw new IllegalArgumentException("不能为方法指定多个目标");
                 var nameMethod = method.getName();
                 var countParam = method.getParameterCount();
                 var typeReturnValue = method.getReturnType();
+                String languageTarget;
+                if(annoField != null && !"".equals(annoField.context()))
+                    languageTarget = annoField.context();
+                else if(annoMethod != null && !"".equals(annoMethod.context()))
+                    languageTarget = annoMethod.context();
+                else languageTarget = null;
+                if(languageTarget != null)
+                {
+                    boolean hasLanguageTarget = false;
+                    for(var language : this.languages)
+                    {
+                        if(language.equals(languageTarget))
+                        {
+                            hasLanguageTarget = true;
+                            break;
+                        }
+                    }
+                    if(!hasLanguageTarget) throw new IllegalArgumentException("脚本引擎不包含指定的语言上下文: " + languageTarget);
+                }
 
                 final boolean isField = annoField != null;
-                final boolean isType = annoType != null;
                 String nameTarget;
                 if(isField)
                 {
@@ -308,16 +376,6 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
                             return null;
                         }
                     });
-                }
-                else if(isType)
-                {
-                    if(countParam > 0) throw new IllegalArgumentException("类型绑定器不能有形参");
-
-                    nameTarget = "".equals(annoType.value()) ? nameMethod : annoType.value();
-
-                    bindings.putMember(nameTarget, typeReturnValue);
-
-                    this.mappedContext.put(method, this::notMethod);
                 }
                 else
                 {

@@ -2,6 +2,7 @@ package firok.amber;
 
 import firok.topaz.function.MustCloseable;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -85,6 +86,12 @@ public interface ScriptInterface extends MustCloseable
      * @since 3.0.0
      * */
     Value eval(String language, String script);
+
+    /**
+     * 执行更多脚本内容
+     * @since 4.0.0
+     * */
+    Value eval(Source source);
 
     /**
      * 你知道自己在做什么
