@@ -1,9 +1,11 @@
 package firok.amber;
 
+import firok.topaz.function.MayFunction;
 import firok.topaz.function.MustCloseable;
 import firok.topaz.reflection.Reflections;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.jetbrains.annotations.NotNull;
@@ -24,185 +26,124 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
     private final LockProxy lockProxy;
     private final Context context;
     private final Map<String, Value> mapBinding;
-    private final Map<Method, Function<Object[], ?>> mappedContext;
+    private final Map<Method, MayFunction<Object[], ?>> mappedContext;
     @NotNull private final static Method FunGet = Reflections.methodOf(ScriptInterface.class, "get", String.class);
     private Object funGet(Object[] args)
     {
-        try
+        var key = (String) args[0];
+        for(var language : languages)
         {
-            var key = (String) args[0];
-            for(var language : languages)
-            {
-                var value = mapBinding.get(language).getMember(key);
-                if(value != null) return value;
-            }
-            return null;
+            var value = mapBinding.get(language).getMember(key);
+            if(value != null) return value;
         }
-        catch (Exception any) { return null; }
+        return null;
     }
     @NotNull private final static Method FunGetFrom = Reflections.methodOf(ScriptInterface.class, "get", String.class, String.class);
     private Object funGetFrom(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var key = (String) args[1];
-            return mapBinding.get(language).getMember(key);
-        }
-        catch (Exception any) { return null; }
+        var language = (String) args[0];
+        var key = (String) args[1];
+        return mapBinding.get(language).getMember(key);
     }
     @NotNull private final static Method FunGetType = Reflections.methodOf(ScriptInterface.class, "get", String.class, Class.class);
     private Object funGetType(Object[] args)
     {
-        try
+        var key = (String) args[0];
+        var type = (Class<?>) args[1];
+        for(var language : languages)
         {
-            var key = (String) args[0];
-            var type = (Class<?>) args[1];
-            for(var language : languages)
-            {
-                var value = mapBinding.get(language).getMember(key);
-                if(value != null && !value.isNull())
-                    return value.as(type);
-            }
-            return null;
+            var value = mapBinding.get(language).getMember(key);
+            if(value != null && !value.isNull())
+                return value.as(type);
         }
-        catch (Exception any) { return null; }
+        return null;
     }
     @NotNull private final static Method FunGetTypeFrom = Reflections.methodOf(ScriptInterface.class, "get", String.class, String.class, Class.class);
     private Object funGetTypeFrom(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var key = (String) args[1];
-            var type = (Class<?>) args[2];
-            var value = mapBinding.get(language).getMember(key);
-            if(value != null && !value.isNull())
-                return value.as(type);
-            return null;
-        }
-        catch (Exception any) { return null; }
+        var language = (String) args[0];
+        var key = (String) args[1];
+        var type = (Class<?>) args[2];
+        var value = mapBinding.get(language).getMember(key);
+        if(value != null && !value.isNull())
+            return value.as(type);
+        return null;
     }
     @NotNull private final static Method FunSet = Reflections.methodOf(ScriptInterface.class, "set", String.class, Object.class);
     private Object funSet(Object[] args)
     {
-        try
+        var key = (String) args[0];
+        var value = args[1];
+        for(var language : this.languages)
         {
-            var key = (String) args[0];
-            var value = args[1];
-            for(var language : this.languages)
-            {
-                mapBinding.get(language).putMember(key, value);
-            }
+            mapBinding.get(language).putMember(key, value);
         }
-        catch (Exception ignored) { }
         return null;
     }
     @NotNull private final static Method FunSetTo = Reflections.methodOf(ScriptInterface.class, "set", String.class, String.class, Object.class);
     private Object funSetTo(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var key = (String) args[1];
-            var value = args[2];
-            mapBinding.get(language).putMember(key, value);
-        }
-        catch (Exception ignored) { }
+        var language = (String) args[0];
+        var key = (String) args[1];
+        var value = args[2];
+        mapBinding.get(language).putMember(key, value);
         return null;
     }
     @NotNull private final static Method FunHas = Reflections.methodOf(ScriptInterface.class, "has", String.class);
     private Object funHas(Object[] args)
     {
-        try
+        var key = (String) args[0];
+        for(var language : this.languages)
         {
-            var key = (String) args[0];
-            for(var language : this.languages)
-            {
-                if(mapBinding.get(language).hasMember(key)) return true;
-            }
-            return false;
+            if(mapBinding.get(language).hasMember(key)) return true;
         }
-        catch (Exception any) { return false; }
+        return false;
     }
     @NotNull private final static Method FunHasAt = Reflections.methodOf(ScriptInterface.class, "has", String.class, String.class);
     private Object funHasAt(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var key = (String) args[1];
-            return mapBinding.get(language).hasMember(key);
-        }
-        catch (Exception any) { return false; }
+        var language = (String) args[0];
+        var key = (String) args[1];
+        return mapBinding.get(language).hasMember(key);
     }
     @NotNull private final static Method FunRemove = Reflections.methodOf(ScriptInterface.class, "remove", String.class);
     private Object funRemove(Object[] args)
     {
-        try
+        var key = (String) args[0];
+        for(var language : this.languages)
         {
-            var key = (String) args[0];
-            for(var language : this.languages)
-            {
-                mapBinding.get(language).removeMember(key);
-            }
+            mapBinding.get(language).removeMember(key);
         }
-        catch (Exception ignored) { }
         return null;
     }
     @NotNull private final static Method FunRemoveAt = Reflections.methodOf(ScriptInterface.class, "remove", String.class, String.class);
     private Object funRemoveAt(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var key = (String) args[1];
-            mapBinding.get(language).removeMember(key);
-        }
-        catch (Exception ignored) { }
+        var language = (String) args[0];
+        var key = (String) args[1];
+        mapBinding.get(language).removeMember(key);
         return null;
     }
     @NotNull private final static Method FunEval = Reflections.methodOf(ScriptInterface.class, "eval", String.class);
-    private Object funEval(Object[] args)
+    private Object funEval(Object[] args) throws Exception
     {
-        try
-        {
-            var script = (String) args[0];
-            if(this.languages.length > 1)
-                throw new OperationNotSupportedException("eval(String) method is allowed when only one language is used");
-            return this.context.eval(this.languages[0], script);
-        }
-        catch (Exception any)
-        {
-            throw new RuntimeException(any);
-        }
+        var script = (String) args[0];
+        if(this.languages.length > 1)
+            throw new OperationNotSupportedException("eval(String) method is allowed when only one language is used");
+        return this.context.eval(this.languages[0], script);
     }
     @NotNull private final static Method FunEvalAt = Reflections.methodOf(ScriptInterface.class, "eval", String.class, String.class);
     private Object funEvalAt(Object[] args)
     {
-        try
-        {
-            var language = (String) args[0];
-            var script = (String) args[1];
-            return this.context.eval(language, script);
-        }
-        catch (Exception any)
-        {
-            throw new RuntimeException(any);
-        }
+        var language = (String) args[0];
+        var script = (String) args[1];
+        return this.context.eval(language, script);
     }
     @NotNull private final static Method FunEvalSource = Reflections.methodOf(ScriptInterface.class, "eval", Source.class);
     private Object funEvalSource(Object[] args)
     {
-        try
-        {
-            var source = (Source) args[0];
-            return this.context.eval(source);
-        }
-        catch (Exception any)
-        {
-            throw new RuntimeException(any);
-        }
+        var source = (Source) args[0];
+        return this.context.eval(source);
     }
     @NotNull private final static Method FunContext = Reflections.methodOf(ScriptInterface.class, "context");
     private Object funContext(Object[] args)
@@ -220,19 +161,6 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
         try { this.context.close(); }
         catch (Exception ignored) { }
         return null;
-    }
-
-    private Object funFieldSetter()
-    {
-        ;
-    }
-    private Object funFieldGetter()
-    {
-        ;
-    }
-    private Object funMethod()
-    {
-        ;
     }
 
     private final String[] languages;
@@ -365,23 +293,89 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
 
                     nameTarget = "".equals(annoField.value()) ? nameMethod : annoField.value();
 
-                    this.mappedContext.put(method, (args) -> {
-                        if (countParam == 0)
+                    if(countParam == 0)
+                    {
+                        if(languageTarget == null)
                         {
-                            return bindings.hasMember(nameTarget) ? bindings.getMember(nameTarget).as(typeReturnValue) : null;
+                            this.mappedContext.put(method, (args) -> {
+                                for(var language : AmberInstance.this.languages)
+                                {
+                                    var bindings = mapBinding.get(language);
+                                    if(bindings.hasMember(nameTarget))
+                                        return bindings.getMember(nameTarget).as(typeReturnValue);
+                                }
+                                return null;
+                            });
                         }
                         else
                         {
-                            bindings.putMember(nameTarget, args[0]);
-                            return null;
+                            this.mappedContext.put(method, (args) -> {
+                                var bindings = mapBinding.get(languageTarget);
+                                return bindings.hasMember(nameTarget) ?
+                                        bindings.getMember(nameTarget).as(typeReturnValue) :
+                                        null;
+                            });
                         }
-                    });
+                        this.mappedContext.put(method, (args) -> {});
+                    }
+                    else // countParam == 1
+                    {
+                        if(languageTarget == null)
+                        {
+                            this.mappedContext.put(method, (args) -> {
+                                for(var language : AmberInstance.this.languages)
+                                {
+                                    var bindings = mapBinding.get(language);
+                                    bindings.putMember(nameTarget, args[0]);
+                                }
+                                return null;
+                            });
+                        }
+                        else
+                        {
+                            this.mappedContext.put(method, (args) -> {
+                                var bindings = mapBinding.get(languageTarget);
+                                bindings.putMember(nameTarget, args[0]);
+                                return null;
+                            });
+                        }
+                    }
                 }
                 else
                 {
                     nameTarget = annoMethod != null && !"".equals(annoMethod.value()) ?
                             annoMethod.value() :
                             nameMethod;
+
+                    if(languageTarget == null)
+                    {
+                        if(typeReturnValue == void.class || typeReturnValue == Void.class)
+                        {
+                            this.mappedContext.put(method, (args) -> {
+                                var isEmptyArgs = isEmpty(args);
+                                for(var language : AmberInstance.this.languages)
+                                {
+                                    var bindings = mapBinding.get(language);
+                                    if(bindings.hasMember(nameTarget))
+                                    {
+                                        var target = bindings.getMember(nameTarget);
+                                        if(target.canExecute())
+                                        {
+                                            if(isEmptyArgs) target.executeVoid();
+                                            else target.executeVoid(args);
+                                            return null;
+                                        }
+                                    }
+                                }
+                                throw new NoSuchMethodException("所有上下文内都不存在指定方法: " + nameTarget);
+                            });
+                        }
+
+                    }
+                    else
+                    {
+                        this.mappedContext.put(method, (args) -> {});
+                    }
 
                     this.mappedContext.put(method, (args) -> {
                         var target = bindings.getMember(nameTarget);
