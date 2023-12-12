@@ -43,6 +43,7 @@ public final class Amber
         var setLang = new HashSet<String>();
         polyglotLanguages.forEach(setLang::add);
         scripts.forEach(script -> setLang.add(script.getLanguage()));
+//        setLang.add(polyglotLanguage);
 
         return (TypeInterface) Proxy.newProxyInstance(
                 classScriptInterface.getClassLoader(),
@@ -58,22 +59,18 @@ public final class Amber
     }
 
     public static <TypeInterface extends ScriptInterface>
-    TypeInterface trapWithoutScripts(
-            Iterable<Language> polyglotLanguages,
-            Consumer<Context.Builder> builderProxy,
-            LockProxy lockProxy,
+    TypeInterface trap(
+            Iterable<String> polyglotLanguage,
+            Iterable<Source> scripts,
             Class<TypeInterface> classScriptInterface
     )
     {
-        return (TypeInterface) Proxy.newProxyInstance(
-                classScriptInterface.getClassLoader(),
-                new Class[] { classScriptInterface },
-                new AmberInstance<>(
-                        polyglotLanguages,
-                        classScriptInterface,
-                        builderProxy,
-                        lockProxy
-                )
+        return trap(
+                polyglotLanguage,
+                scripts,
+                Amber::withAllAccess,
+                new firok.topaz.thread.ReentrantLockProxy(),
+                classScriptInterface
         );
     }
 

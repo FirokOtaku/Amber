@@ -1,9 +1,10 @@
 package firok.amber.test;
 
+import firok.amber.Amber;
 import firok.amber.Field;
 import firok.amber.Method;
 import firok.amber.ScriptInterface;
-import firok.amber.SimpleScriptProxy;
+import org.graalvm.polyglot.Source;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -30,9 +31,10 @@ public class SimpleScriptProxyTests
      * 对无参方法的直接调用
      * */
     @Test
-    public void testCallFunctionWithoutArg()
+    public void testCallFunctionWithoutArg() throws Exception
     {
-        try(var proxy = SimpleScriptProxy.connect(ScriptCallFunctionWithoutArg, LogInterface.class))
+        var source = Source.newBuilder("js", ScriptCallFunctionWithoutArg, "test.js").build();
+        try(var proxy = Amber.trap(List.of("js"), List.of(source), LogInterface.class))
         {
             proxy.log();
         }
@@ -54,9 +56,10 @@ public class SimpleScriptProxyTests
      * 对有参方法的调用
      * */
     @Test
-    public void testCallFunctionWithArg()
+    public void testCallFunctionWithArg() throws Exception
     {
-        try(var proxy = SimpleScriptProxy.connect(ScriptFunctionWithArgCall, MathInterface.class))
+        var source = Source.newBuilder("js", ScriptFunctionWithArgCall, "test.js").build();
+        try(var proxy = Amber.trap(List.of("js"), List.of(source), MathInterface.class))
         {
             Assertions.assertEquals(1, proxy.min(1, 100));
             Assertions.assertEquals(1, proxy.min(1, 200));
@@ -99,9 +102,10 @@ public class SimpleScriptProxyTests
      * 手动指定脚本内容对 Java 接口的映射
      * */
     @Test
-    void testMemberBinding()
+    void testMemberBinding() throws Exception
     {
-        try(var proxyBinding = SimpleScriptProxy.connect(ScriptContextMemberBinding, MemberBindingInterface.class))
+        var source = Source.newBuilder("js", ScriptContextMemberBinding, "test.js").build();
+        try(var proxyBinding = Amber.trap(List.of("js"), List.of(source), MemberBindingInterface.class))
         {
             Assertions.assertEquals(1, proxyBinding.num1());
             Assertions.assertEquals(2, proxyBinding.num2withDifferentMethodName());
@@ -146,9 +150,10 @@ public class SimpleScriptProxyTests
     }
 
     @Test
-    public void testContextOperation()
+    public void testContextOperation() throws Exception
     {
-        try(var proxy = SimpleScriptProxy.connect(ScriptContextOperation, ScriptContextOperationInterface.class))
+        var source = Source.newBuilder("js", ScriptContextOperation, "test.js").build();
+        try(var proxy = Amber.trap(List.of("js"), List.of(source), ScriptContextOperationInterface.class))
         {
             Assertions.assertEquals(1, proxy.value1());
             Assertions.assertNull(proxy.value2());
@@ -173,7 +178,10 @@ public class SimpleScriptProxyTests
             Assertions.assertThrowsExactly(UndeclaredThrowableException.class, () -> Assertions.assertNull(proxy.getValue2()));
 
             Assertions.assertArrayEquals(new int[]{1, 2, 3}, proxy.get("arr1", int[].class)); // 整型没问题, 可以直接拿
-            Assertions.assertArrayEquals(null, proxy.get("arr2", float[].class)); // 这么转换只能获取到 null, 从 JS 上下文转换要用 double 类型
+            Assertions.assertThrows(Exception.class, () -> {
+                // JS 上下文的数字等价为 Double, 没法直接转换成 float 类型
+                Assertions.assertArrayEquals(null, proxy.get("arr2", float[].class));
+            });
             Assertions.assertArrayEquals(new double[]{1.1, 2.2, 3.3}, proxy.get("arr2", double[].class)); // 这样就没错了
             Assertions.assertArrayEquals(new String[]{"s1", "s2", "s3"}, proxy.get("arr3", String[].class));
             Assertions.assertArrayEquals(new Object[]{"s1", 2, 3.1d, false}, proxy.get("arr4", Object[].class));

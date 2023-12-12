@@ -1,8 +1,10 @@
 package firok.amber.test;
 
+import firok.amber.Amber;
+import firok.amber.Init;
 import firok.amber.ScriptInterface;
-import firok.amber.SimpleScriptProxy;
 import firok.amber.Type;
+import org.graalvm.polyglot.Source;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -42,9 +44,10 @@ public class JavaTypeConvertTests
             """;
 
     @Test
-    public void testReturnBeanType()
+    public void testReturnBeanType() throws Exception
     {
-        try(var beanSupplier = SimpleScriptProxy.connect(ScriptSuccess, BeanSupplier.class))
+        var source = Source.newBuilder("js", ScriptSuccess, "test.js").build();
+        try(var beanSupplier = Amber.trap(List.of("js"), List.of(source), BeanSupplier.class))
         {
             var beans = beanSupplier.getBeans();
             for (Bean bean : beans)
@@ -68,25 +71,20 @@ public class JavaTypeConvertTests
             }
             """;
 
+    @Init(types = {
+            @Type(target = Bean.class, name = "Bean"),
+            @Type(target = Bean.class, name = "Bean2"),
+    })
     public interface WithTypeInit extends ScriptInterface
     {
-        /**
-         * 方法返回值的类型在上下文初始化的时候就绑定进去了, 脚本里就不需要自己执行 Java.type 之类的操作了
-         * */
-        @Type Bean Bean();
-
-        /**
-         * Bean 类型会以 Bean2 的名字绑定
-         * */
-        @Type("Bean2") Bean anyName();
-
         List<Bean> getBeans();
     }
 
     @Test
-    public void testTypeInit()
+    public void testTypeInit() throws Exception
     {
-        try(var beanSupplier = SimpleScriptProxy.connect(ScriptInitWithType, WithTypeInit.class))
+        var source = Source.newBuilder("js", ScriptInitWithType, "test.js").build();
+        try(var beanSupplier = Amber.trap(List.of("js"), List.of(source), WithTypeInit.class))
         {
             var beans = beanSupplier.getBeans();
             for (Bean bean : beans)
@@ -115,7 +113,8 @@ public class JavaTypeConvertTests
     public void testConvertError()
     {
         Assertions.assertThrowsExactly(ClassCastException.class, () -> {
-            try(var beanSupplier = SimpleScriptProxy.connect(ScriptError, BeanSupplier.class))
+            var source = Source.newBuilder("js", ScriptError, "test.js").build();
+            try(var beanSupplier = Amber.trap(List.of("js"), List.of(source), BeanSupplier.class))
             {
                 // 这里 beans 的类型实际上是 com.oracle.truffle.polyglot.PolyglotList<com.oracle.truffle.polyglot.PolyglotMap>
                 // 不是期望的 List<Bean>

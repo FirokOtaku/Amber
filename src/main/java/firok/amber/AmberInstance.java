@@ -9,6 +9,7 @@ import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.naming.OperationNotSupportedException;
 import javax.script.Bindings;
@@ -265,25 +266,7 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
                 var nameMethod = method.getName();
                 var countParam = method.getParameterCount();
                 var typeReturnValue = method.getReturnType();
-                String languageTarget;
-                if(annoField != null && !"".equals(annoField.context()))
-                    languageTarget = annoField.context();
-                else if(annoMethod != null && !"".equals(annoMethod.context()))
-                    languageTarget = annoMethod.context();
-                else languageTarget = null;
-                if(languageTarget != null)
-                {
-                    boolean hasLanguageTarget = false;
-                    for(var language : this.languages)
-                    {
-                        if(language.equals(languageTarget))
-                        {
-                            hasLanguageTarget = true;
-                            break;
-                        }
-                    }
-                    if(!hasLanguageTarget) throw new IllegalArgumentException("脚本引擎不包含指定的语言上下文: " + languageTarget);
-                }
+                var languageTarget = getLanguageTarget(annoField, annoMethod);
 
                 final boolean isField = annoField != null;
                 String nameTarget;
@@ -316,7 +299,6 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
                                         null;
                             });
                         }
-                        this.mappedContext.put(method, (args) -> {});
                     }
                     else // countParam == 1
                     {
@@ -370,32 +352,95 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
                                 throw new NoSuchMethodException("所有上下文内都不存在指定方法: " + nameTarget);
                             });
                         }
-
+                        else
+                        {
+                            this.mappedContext.put(method, (args) -> {
+                                var isEmptyArgs = isEmpty(args);
+                                for(var language : AmberInstance.this.languages)
+                                {
+                                    var bindings = mapBinding.get(language);
+                                    if(bindings.hasMember(nameTarget))
+                                    {
+                                        var target = bindings.getMember(nameTarget);
+                                        if(target.canExecute())
+                                        {
+                                            return isEmptyArgs ?
+                                                    target.execute().as(typeReturnValue) :
+                                                    target.execute(args).as(typeReturnValue);
+                                        }
+                                    }
+                                }
+                                throw new NoSuchMethodException("所有上下文内都不存在指定方法: " + nameTarget);
+                            });
+                        }
                     }
                     else
                     {
-                        this.mappedContext.put(method, (args) -> {});
-                    }
-
-                    this.mappedContext.put(method, (args) -> {
-                        var target = bindings.getMember(nameTarget);
-
-                        if (typeReturnValue == void.class || typeReturnValue == Void.class)
+                        if(typeReturnValue == void.class || typeReturnValue == Void.class)
                         {
-                            if (isEmpty(args)) target.executeVoid();
-                            else target.executeVoid(args);
-                            return null;
+                            this.mappedContext.put(method, (args) -> {
+                                var isEmptyArgs = isEmpty(args);
+                                var bindings = mapBinding.get(languageTarget);
+                                if(bindings.hasMember(nameTarget))
+                                {
+                                    var target = bindings.getMember(nameTarget);
+                                    if(target.canExecute())
+                                    {
+                                        if(isEmptyArgs) target.executeVoid();
+                                        else target.executeVoid(args);
+                                        return null;
+                                    }
+                                }
+                                throw new NoSuchMethodException("指定上下文内不存在指定方法: " + nameTarget);
+                            });
                         }
                         else
                         {
-                            return isEmpty(args) ?
-                                    target.execute().as(typeReturnValue) :
-                                    target.execute(args).as(typeReturnValue);
+                            this.mappedContext.put(method, (args) -> {
+                                var isEmptyArgs = isEmpty(args);
+                                var bindings = mapBinding.get(languageTarget);
+                                if(bindings.hasMember(nameTarget))
+                                {
+                                    var target = bindings.getMember(nameTarget);
+                                    if(target.canExecute())
+                                    {
+                                        return isEmptyArgs ?
+                                                target.execute().as(typeReturnValue) :
+                                                target.execute(args).as(typeReturnValue);
+                                    }
+                                }
+                                throw new NoSuchMethodException("指定上下文内不存在指定方法: " + nameTarget);
+                            });
                         }
-                    });
+                    }
                 }
             }
         }
+    }
+
+    @Nullable
+    private String getLanguageTarget(Field annoField, firok.amber.Method annoMethod)
+    {
+        String languageTarget;
+        if(annoField != null && !"".equals(annoField.context()))
+            languageTarget = annoField.context();
+        else if(annoMethod != null && !"".equals(annoMethod.context()))
+            languageTarget = annoMethod.context();
+        else languageTarget = null;
+        if(languageTarget != null)
+        {
+            boolean hasLanguageTarget = false;
+            for(var language : this.languages)
+            {
+                if(language.equals(languageTarget))
+                {
+                    hasLanguageTarget = true;
+                    break;
+                }
+            }
+            if(!hasLanguageTarget) throw new IllegalArgumentException("脚本引擎不包含指定的语言上下文: " + languageTarget);
+        }
+        return languageTarget;
     }
 
     @Override
