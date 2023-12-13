@@ -6,13 +6,16 @@
 
 > JavaScript's a trap!
 
-为了方便使用 Java 和 JavaScript 做交叉编程,  
-对 GraalJS 进行了一点微小的封装,  
+最初是为了方便使用 Java 和 JavaScript 做交叉编程,  
+对 GraalVM 的 polyglot 功能进行了一点微小的封装,  
 将一些初始化解释器和类型转换的样板代码封装成工厂方法以供使用.
 
 由于 GraalJS 不支持 JVM 模块化,  
 不方便把这部分代码放在 [Topaz 项目](https://github.com/FirokOtaku/Topaz) 里,  
 所以单独分离作为一个子项目.
+
+现在应该可以支持运行 Graal 项目支持的各种脚本语言,  
+但是只有 JavaScript 和 Python 有经过测试.
 
 代码基于 **Java 21**.
 
@@ -35,10 +38,36 @@
 </repositories>
 
 <dependencies>
+  <!-- 基础依赖 -->
   <dependency>
     <groupId>firok</groupId>
     <artifactId>amber</artifactId>
     <version>{VERSION}</version>
+  </dependency>
+  <dependency>
+    <groupId>org.graalvm.polyglot</groupId>
+    <artifactId>polyglot</artifactId>
+    <version>{VERSION}</version>
+  </dependency>
+
+  <!-- 需要什么语言和特性就加入什么 -->
+  <dependency>
+    <groupId>org.graalvm.polyglot</groupId>
+    <artifactId>js-community</artifactId>
+    <version>{VERSION}</version>
+    <type>pom</type>
+  </dependency>
+  <dependency>
+    <groupId>org.graalvm.polyglot</groupId>
+    <artifactId>python-community</artifactId>
+    <version>{VERSION}</version>
+    <type>pom</type>
+  </dependency>
+  <dependency>
+    <groupId>org.graalvm.polyglot</groupId>
+    <artifactId>tools-community</artifactId>
+    <version>{VERSION}</version>
+    <type>pom</type>
   </dependency>
 </dependencies>
 ```
