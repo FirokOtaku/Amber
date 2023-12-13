@@ -1,5 +1,6 @@
 package firok.amber;
 
+import firok.topaz.annotation.Unstable;
 import firok.topaz.function.MustCloseable;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Source;
@@ -14,6 +15,7 @@ import org.graalvm.polyglot.Value;
  * @version 4.0.0
  * @author Firok
  * */
+@Unstable
 public interface ScriptInterface extends MustCloseable
 {
     /**

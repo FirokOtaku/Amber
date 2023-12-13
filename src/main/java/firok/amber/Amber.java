@@ -1,10 +1,10 @@
 package firok.amber;
 
+import firok.topaz.annotation.Unstable;
 import firok.topaz.general.ProgramMeta;
 import firok.topaz.general.Version;
 import firok.topaz.thread.LockProxy;
 import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.Language;
 import org.graalvm.polyglot.Source;
 
 import java.lang.reflect.Proxy;
@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 @SuppressWarnings("all")
+@Unstable
 public final class Amber
 {
     private Amber() { }
@@ -20,7 +21,7 @@ public final class Amber
     public static final ProgramMeta META = new ProgramMeta(
             "firok.amber",
             "Amber",
-            new Version(4, 0, 0),
+            new Version(4, 0, 1),
             "a personal Java lib",
             List.of("Firok"),
             List.of("https://github.com/FirokOtaku/Amber"),
