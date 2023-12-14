@@ -16,6 +16,7 @@ import org.graalvm.polyglot.Value;
  * @author Firok
  * */
 @Unstable
+@SuppressWarnings("unused")
 public interface ScriptInterface extends MustCloseable
 {
     /**

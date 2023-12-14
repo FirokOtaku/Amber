@@ -53,13 +53,13 @@ public class PolyglotTests
 		void funPython();
 		@Field
 		String valuePython();
-		@Method(context = "python", value = "initPolyglot")
+		@Method(lang = "python", value = "initPolyglot")
 		void initPolyglotPython();
-		@Method(context = "js", value = "initPolyglot")
+		@Method(lang = "js", value = "initPolyglot")
 		void initPolyglotJS();
-		@Method(context = "python", value = "callPolyglot")
+		@Method(lang = "python", value = "callPolyglot")
 		void callPolyglotPython();
-		@Method(context = "js", value = "callPolyglot")
+		@Method(lang = "js", value = "callPolyglot")
 		void callPolyglotJS();
 	}
 	@Test

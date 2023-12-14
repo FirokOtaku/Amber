@@ -10,7 +10,10 @@ import org.graalvm.polyglot.Source;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+
+import static firok.topaz.general.Collections.isEmpty;
 
 @SuppressWarnings("all")
 @Unstable
@@ -37,7 +40,6 @@ public final class Amber
             Iterable<String> polyglotLanguages,
             Iterable<Source> scripts,
             Consumer<Context.Builder> builderProxy,
-            LockProxy lockProxy,
             Class<TypeInterface> classScriptInterface
     )
     {
@@ -53,8 +55,7 @@ public final class Amber
                         setLang,
                         scripts,
                         classScriptInterface,
-                        builderProxy,
-                        lockProxy
+                        builderProxy
                 )
         );
     }
@@ -70,9 +71,42 @@ public final class Amber
                 polyglotLanguage,
                 scripts,
                 Amber::withAllAccess,
-                new firok.topaz.thread.ReentrantLockProxy(),
                 classScriptInterface
         );
+    }
+
+    static void checkNoneImplements(Class<?> classTarget, Class<?>... arrNotClass)
+    {
+        if(isEmpty(arrNotClass)) return;
+        var setInterface = Set.of(classTarget.getInterfaces());
+        for(var notClass : arrNotClass)
+        {
+            if(setInterface.contains(notClass))
+                AmberExceptions.InvalidImplements.occur(
+                        new IllegalArgumentException("class %s implements %s, which is not allowed".formatted(classTarget, notClass))
+                );
+        }
+    }
+
+    public static <TypeInterface extends SingleLanguageScript> TypeInterface
+    trap(String language, Class<TypeInterface> classInterface)
+    {
+        checkNoneImplements(classInterface, MultiLanguageScript.class, JavaScriptModuleScript.class);
+        return null;
+    }
+
+    public static <TypeInterface extends JavaScriptModuleScript> TypeInterface
+    trap(Class<TypeInterface> classInterface)
+    {
+        checkNoneImplements(classInterface, SingleLanguageScript.class, MultiLanguageScript.class);
+        return null;
+    }
+
+    public static <TypeInterface extends MultiLanguageScript> TypeInterface
+    trap(Iterable<String> languages, Class<TypeInterface> classInterface)
+    {
+        checkNoneImplements(classInterface, SingleLanguageScript.class, JavaScriptModuleScript.class);
+        return null;
     }
 
     public static void withAllAccess(Context.Builder builder)

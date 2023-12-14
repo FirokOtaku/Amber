@@ -24,5 +24,11 @@ public @interface Method
      * 哪个上下文里的成员
      * @since 4.0.0
      * */
-    String context() default "";
+    String lang() default "";
+
+    /**
+     * 指定从哪个 ES 模块寻找方法. 仅可用于 JS 语言上下文
+     * @since 5.0.0
+     * */
+    String module() default "";
 }

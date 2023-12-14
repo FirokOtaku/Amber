@@ -4,20 +4,18 @@ import firok.topaz.function.MayFunction;
 import firok.topaz.function.MustCloseable;
 import firok.topaz.reflection.Reflections;
 import firok.topaz.thread.LockProxy;
+import firok.topaz.thread.ReentrantLockProxy;
 import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.naming.OperationNotSupportedException;
-import javax.script.Bindings;
 import java.lang.reflect.*;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static firok.topaz.general.Collections.isEmpty;
 
@@ -175,8 +173,7 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
             Iterable<String> languages,
             Iterable<Source> scripts,
             Class<TypeInterface> classScriptInterface,
-            Consumer<Context.Builder> buildProxy,
-            LockProxy lockProxy
+            Consumer<Context.Builder> buildProxy
     )
     {
         var listLanguage = new ArrayList<String>();
@@ -235,7 +232,7 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
         scripts.forEach(context::eval);
 
         // 读取并创建绑定
-        this.lockProxy = lockProxy;
+        this.lockProxy = new ReentrantLockProxy();
         this.mappedContext = new HashMap<>();
 
         for (var method : classScriptInterface.getMethods())
@@ -422,10 +419,10 @@ class AmberInstance<TypeInterface extends AutoCloseable> implements InvocationHa
     private String getLanguageTarget(Field annoField, firok.amber.Method annoMethod)
     {
         String languageTarget;
-        if(annoField != null && !"".equals(annoField.context()))
-            languageTarget = annoField.context();
-        else if(annoMethod != null && !"".equals(annoMethod.context()))
-            languageTarget = annoMethod.context();
+        if(annoField != null && !"".equals(annoField.lang()))
+            languageTarget = annoField.lang();
+        else if(annoMethod != null && !"".equals(annoMethod.lang()))
+            languageTarget = annoMethod.lang();
         else languageTarget = null;
         if(languageTarget != null)
         {
